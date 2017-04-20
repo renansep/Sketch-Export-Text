@@ -158,7 +158,7 @@ var onRun = function(context) {
             // Configuring save panel
             var savePanel = NSSavePanel.savePanel()
             savePanel.allowedFileTypes = ["txt"]
-            savePanel.nameFieldStringValue = originalPage.nodeName() + "_text_pt"
+            savePanel.nameFieldStringValue = originalPage.nodeName() + "_pt"
 
             // Launching alert
             var result = savePanel.runModal()
