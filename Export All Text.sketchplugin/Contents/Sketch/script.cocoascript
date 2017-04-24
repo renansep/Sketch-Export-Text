@@ -166,13 +166,13 @@ var onRun = function(context) {
             // Configuring save panel
             var savePanel = NSSavePanel.savePanel()
             savePanel.allowedFileTypes = ["txt"]
-            savePanel.nameFieldStringValue = originalPage.nodeName() + "_pt"
+            savePanel.nameFieldStringValue = originalPage.nodeName()
 
             // Launching alert
             var result = savePanel.runModal()
             if (result == NSFileHandlingPanelOKButton) {
-                string.writeToFile_atomically_encoding_error(savePanel.URL().path(),
-                                                             true, NSUTF8StringEncoding, null)
+                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_pt"), true, NSUTF8StringEncoding, null)
+                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_en"), true, NSUTF8StringEncoding, null)
             }
         }
     }
