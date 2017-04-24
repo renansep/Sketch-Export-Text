@@ -14,7 +14,7 @@ var onRun = function(context) {
 
     // Getting accessory view
     var nibUI = new NibUI(context, "UIBundle", "MyNibUI", [
-                           "skipLayersTextField"
+                           "artworksTextField"
                            ])
 
     // Configuring alert
@@ -36,10 +36,9 @@ var onRun = function(context) {
     var result = alert.runModal()
 
     if (result == NSAlertFirstButtonReturn) {
-        var skipLayerNames = nibUI.skipLayersTextField.stringValue() != "" ? nibUI.skipLayersTextField.stringValue().componentsSeparatedByString(", ") : NSArray.new();
-        skipLayerNames = skipLayerNames.arrayByAddingObject("status bar");
+        var artworksNames = nibUI.artworksTextField.stringValue() != "" ? nibUI.artworksTextField.stringValue().componentsSeparatedByString(", ") : NSArray.new();
         var parameters = NSDictionary.dictionaryWithDictionary({
-            "skipLayerNames" : skipLayerNames
+            "artworksNames" : artworksNames
         })
 
         mainFunction(parameters)
@@ -82,19 +81,19 @@ var onRun = function(context) {
         // Finding text layers
         var resultDict = NSMutableDictionary.dictionary()
 
-        iterateThroughInnerLayersAndValidate(tempPage)
+        iterateThroughInnerLayersAndValidate(tempPage, true)
 
-        function iterateThroughInnerLayersAndValidate(layerGroup) {
-            if ( !isLayerNameValid(layerGroup.name()) ) { return }
-
-            var groupLayersLoop = layerGroup.layers().objectEnumerator()
-            while (groupChildLayer = groupLayersLoop.nextObject()) {
-                if ( groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSLayerGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
-                    iterateThroughInnerLayersAndValidate(groupChildLayer)
-                } else {
-                    var artboardName = "Artboard: "
-                    artboardName += groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
-                    itentifyAndAddResult(groupChildLayer, artboardName)
+        function iterateThroughInnerLayersAndValidate(layerGroup, isRoot) {
+            if (isRoot || isArtworkNameValid(layerGroup.name())) {
+                var groupLayersLoop = layerGroup.layers().objectEnumerator()
+                while (groupChildLayer = groupLayersLoop.nextObject()) {
+                    if ( groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSLayerGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
+                        iterateThroughInnerLayersAndValidate(groupChildLayer, false)
+                    } else {
+                        var artboardName = "Artboard: "
+                        artboardName += groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
+                        itentifyAndAddResult(groupChildLayer, artboardName)
+                    }
                 }
             }
         }
@@ -102,7 +101,9 @@ var onRun = function(context) {
         // Validating results and making dictionary
         function itentifyAndAddResult(layer, key) {
             if (layer.isMemberOfClass(MSTextLayer)) {
-                if (!isLayerNameValid(layer.nodeName())) { return }
+                if (layer.nodeName().isEqualToString("status bar")) {
+                    return
+                }
                 var preparedString = prepareString(layer.attributedString().string())
                 addResult(preparedString, key)
             }
@@ -121,20 +122,26 @@ var onRun = function(context) {
             }
         }
 
-        // Settings: Skip Layers
-        function isLayerNameValid(layerName) {
-            if (parameters["skipLayerNames"] != 0) {
-                var skipLayerNamesLoop = parameters["skipLayerNames"].objectEnumerator()
-                while (skipLayerName = skipLayerNamesLoop.nextObject()) {
-                    if (skipLayerName.isEqualToString(layerName)) { return false }
+        // Settings: Only Artworks
+        function isArtworkNameValid(artworkName) {
+            if (parameters["artworksNames"].count() > 0) {
+                var artworksNamesLoop = parameters["artworksNames"].objectEnumerator()
+                while (currentArtworkName = artworksNamesLoop.nextObject()) {
+                    if (artworkName.isEqualToString(currentArtworkName)) {
+                        return true
+                    }
                 }
+                return false
             }
-            return true
+            else {
+                return true
+            }
         }
 
         document.documentData().removePage(tempPage)
 
         // Preparing result string
+        var keyCount = 0
         var resultString = ""
 
         var resultKeysLoop = resultDict.allKeys().objectEnumerator()
@@ -145,7 +152,8 @@ var onRun = function(context) {
 
             var stringsLoop = resultDict[resultKey].objectEnumerator()
             while (string = stringsLoop.nextObject()) {
-                resultString += "::" + string + ":: = \"\"\n"
+                keyCount++
+                resultString += "::" + keyCount + " " + string + ":: = \"\"\n"
             }
             resultString += "\n"
         }
