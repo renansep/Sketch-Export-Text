@@ -171,7 +171,7 @@ var onRun = function(context) {
             // Launching alert
             var result = savePanel.runModal()
             if (result == NSFileHandlingPanelOKButton) {
-                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_pt"), true, NSUTF8StringEncoding, null)
+                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_pt-BR"), true, NSUTF8StringEncoding, null)
                 string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_en"), true, NSUTF8StringEncoding, null)
             }
         }
