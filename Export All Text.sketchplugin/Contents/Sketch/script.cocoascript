@@ -162,8 +162,10 @@ var onRun = function(context) {
 
             var stringsLoop = resultDict[artboardName].objectEnumerator()
             while (string = stringsLoop.nextObject()) {
-                resultString += "::" + strArtboardNumber + "." + keyCount + " " + string + ":: = \"\"\n"
-                keyCount++
+                if (string.stringByReplacingOccurrencesOfString_withString(" ", "").length() > 0) {
+                    resultString += "::" + strArtboardNumber + "." + keyCount + " " + string + ":: = \"\"\n"
+                    keyCount++
+                }
             }
             resultString += "\n"
         }
