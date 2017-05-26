@@ -87,12 +87,18 @@ var onRun = function(context) {
             if (isRoot || isArtworkNameValid(layerGroup.name())) {
                 var groupLayersLoop = layerGroup.layers().objectEnumerator()
                 while (groupChildLayer = groupLayersLoop.nextObject()) {
-                    if ( groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSLayerGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
+                    if (groupChildLayer.isMemberOfClass(MSLayerGroup)) {
+                        if (!groupChildLayer.nodeName().substringToIndex(2).isEqualToString("!!")) {
+                            iterateThroughInnerLayersAndValidate(groupChildLayer, false)
+                        }
+                    } else if (groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
                         iterateThroughInnerLayersAndValidate(groupChildLayer, false)
                     } else {
                         var artboardName = "Artboard: "
                         artboardName += groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
-                        itentifyAndAddResult(groupChildLayer, artboardName)
+                        // if (!groupChildLayer.parentGroup().nodeName().substringToIndex(2).isEqualToString("!!")) {
+                            itentifyAndAddResult(groupChildLayer, artboardName)
+                        // }
                     }
                 }
             }
