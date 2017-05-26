@@ -148,7 +148,9 @@ var onRun = function(context) {
         var keyCount = 0
         var resultString = ""
 
-        var resultKeysLoop = resultDict.allKeys().objectEnumerator()
+        var sortDescriptor = NSSortDescriptor.sortDescriptorWithKey_ascending("", true)
+        var sortDescriptors = NSArray.arrayWithObject(sortDescriptor)
+        var resultKeysLoop = resultDict.allKeys().sortedArrayUsingDescriptors(sortDescriptors).objectEnumerator()
         while (resultKey = resultKeysLoop.nextObject()) {
 
             // Artboard name
