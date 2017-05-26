@@ -96,9 +96,7 @@ var onRun = function(context) {
                     } else {
                         var artboardName = "Artboard: "
                         artboardName += groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
-                        // if (!groupChildLayer.parentGroup().nodeName().substringToIndex(2).isEqualToString("!!")) {
-                            itentifyAndAddResult(groupChildLayer, artboardName)
-                        // }
+                        itentifyAndAddResult(groupChildLayer, artboardName)
                     }
                 }
             }
