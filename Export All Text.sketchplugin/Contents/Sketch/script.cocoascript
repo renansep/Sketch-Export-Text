@@ -94,8 +94,7 @@ var onRun = function(context) {
                     } else if (groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
                         iterateThroughInnerLayersAndValidate(groupChildLayer, false)
                     } else {
-                        var artboardName = "Artboard: "
-                        artboardName += groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
+                        var artboardName = groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
                         itentifyAndAddResult(groupChildLayer, artboardName)
                     }
                 }
@@ -145,21 +144,26 @@ var onRun = function(context) {
         document.documentData().removePage(tempPage)
 
         // Preparing result string
-        var keyCount = 0
         var resultString = ""
+        var keyCount = 0
 
         var sortDescriptor = NSSortDescriptor.sortDescriptorWithKey_ascending("", true)
         var sortDescriptors = NSArray.arrayWithObject(sortDescriptor)
         var resultKeysLoop = resultDict.allKeys().sortedArrayUsingDescriptors(sortDescriptors).objectEnumerator()
-        while (resultKey = resultKeysLoop.nextObject()) {
-
+        while (artboardName = resultKeysLoop.nextObject()) {
             // Artboard name
-            resultString += resultKey + "\n\n"
+            resultString += "Artboard " + artboardName + "\n\n"
 
-            var stringsLoop = resultDict[resultKey].objectEnumerator()
+            var dotRange = artboardName.rangeOfString(".")
+            var strArtboardNumber = artboardName.substringToIndex(dotRange.location)
+            var numberFormatter = NSNumberFormatter.alloc().init()
+            var artboardNumber = numberFormatter.numberFromString(strArtboardNumber)
+            strArtboardNumber = numberFormatter.stringFromNumber(artboardNumber)
+
+            var stringsLoop = resultDict[artboardName].objectEnumerator()
             while (string = stringsLoop.nextObject()) {
+                resultString += "::" + strArtboardNumber + "." + keyCount + " " + string + ":: = \"\"\n"
                 keyCount++
-                resultString += "::" + keyCount + " " + string + ":: = \"\"\n"
             }
             resultString += "\n"
         }
