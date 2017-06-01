@@ -85,7 +85,7 @@ var onRun = function(context) {
 
         function iterateThroughInnerLayersAndValidate(layerGroup, isRoot) {
             if (isRoot || isArtworkNameValid(layerGroup.name())) {
-                var groupLayersLoop = layerGroup.layers().objectEnumerator()
+                var groupLayersLoop = layerGroup.layers().reverseObjectEnumerator()
                 while (groupChildLayer = groupLayersLoop.nextObject()) {
                     if (groupChildLayer.isMemberOfClass(MSLayerGroup)) {
                         if (!groupChildLayer.nodeName().substringToIndex(2).isEqualToString("!!")) {
@@ -104,7 +104,8 @@ var onRun = function(context) {
         // Validating results and making dictionary
         function itentifyAndAddResult(layer, key) {
             if (layer.isMemberOfClass(MSTextLayer)) {
-                if (layer.nodeName().isEqualToString("status bar")) {
+                var layerName = layer.nodeName();
+                if (layerName.length() > 1 && layerName.substringToIndex(2).isEqualToString("!!")) {
                     return
                 }
                 var preparedString = prepareString(layer.attributedString().string())
