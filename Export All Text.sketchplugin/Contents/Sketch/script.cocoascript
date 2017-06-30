@@ -1,5 +1,3 @@
-@import 'sketch-nibui.js'
-
 var onRun = function(context) {
 
     // General Declarations
@@ -10,183 +8,140 @@ var onRun = function(context) {
     var pathToContentsFolder = context.scriptPath.stringByDeletingLastPathComponent().stringByDeletingLastPathComponent()
     var pathToSettingsFile = pathToContentsFolder.stringByAppendingPathComponent("/Sketch/LastSettings.plist")
 
-    /* Alert */
+    mainFunction()
 
-    // Getting accessory view
-    var nibUI = new NibUI(context, "UIBundle", "MyNibUI", [
-                           "artworksTextField"
-                           ])
-
-    // Configuring alert
-    var alert = NSAlert.alloc().init()
-
-    var iconPath = pathToContentsFolder.stringByAppendingPathComponent("/Resources/Icon.png")
-    alert.icon = NSImage.new().initWithContentsOfFile(iconPath)
-
-    alert.messageText = 'Exportar texto de "' + originalPage.nodeName() + '" para arquivo'
-    var alertMessageTextLastWordLocation = alert.messageText().rangeOfString_options(" ", NSBackwardsSearch).location
-    var alertMessageTextWithoutLastWord = alert.messageText().substringToIndex(alertMessageTextLastWordLocation)
-
-    alert.addButtonWithTitle("Exportar")
-    alert.addButtonWithTitle("Cancelar")
-
-    alert.accessoryView = nibUI.view
-
-    // Launching alert
-    var result = alert.runModal()
-
-    if (result == NSAlertFirstButtonReturn) {
-        var artworksNames = nibUI.artworksTextField.stringValue() != "" ? nibUI.artworksTextField.stringValue().componentsSeparatedByString(", ") : NSArray.new();
-        var parameters = NSDictionary.dictionaryWithDictionary({
-            "artworksNames" : artworksNames
-        })
-
-        mainFunction(parameters)
+    function isLayerNameInvalid(layerName) {
+        return layerName.length() >= 2 && layerName.substringToIndex(2).isEqualToString("!!")
     }
 
     /* Main Function */
 
-    function mainFunction(parameters) {
+    function mainFunction() {
 
         // Creating Temp Page
         var tempPage = originalPage.copy()
         tempPage.name = "Temp Page"
         document.documentData().addPage(tempPage)
 
-        // Getting rid of symbols
-        var exportedInstanceLoopDict = NSMutableDictionary.dictionary()
+        var artboards = NSMutableArray.array()
 
-        var pageChildrenLoop = tempPage.children().objectEnumerator()
-        while (pageLayer = pageChildrenLoop.nextObject()) {
-            findAndDetachFromSymbol(pageLayer)
-        }
+        var pageChildrenLoop = tempPage.children().reverseObjectEnumerator()
+        while (pageChild = pageChildrenLoop.nextObject()) {
+            if (pageChild.isMemberOfClass(MSArtboardGroup)) {
+                var artboard = pageChild
 
-        function findAndDetachFromSymbol(layer) {
-            if (layer.isMemberOfClass(MSSymbolInstance)) {
-
-                var layerName = layer.nodeName()
-                layer = layer.detachByReplacingWithGroup()
-
-                if (layer) {
-                    if (layer.nodeName()) { layer.nodeName = layerName }
-
-                    exportedInstanceLoopDict[layer.objectID()] = layer.children().objectEnumerator()
-                    while (innerLayer = exportedInstanceLoopDict[layer.objectID()].nextObject()) {
-                        findAndDetachFromSymbol(innerLayer)
-                    }
+                var artboardName = pageChild.nodeName()
+                var dotRange = artboardName.rangeOfString(".")
+                if (dotRange.location != NSNotFound) {
+                    artboard.nodeName = artboardName.substringFromIndex(dotRange.location + 1)
                 }
+
+                artboards.addObject(artboard)
+            } else if (pageChild.isMemberOfClass(MSSymbolInstance)) {
+                var symbol = pageChild
+                findAndDetachFromSymbol(symbol, symbol.nodeName())
             }
         }
 
-        // Finding text layers
-        var resultDict = NSMutableDictionary.dictionary()
+        function findAndDetachFromSymbol(symbol, rootName) {
+            var symbolName = symbol.nodeName();
+            symbol = symbol.detachByReplacingWithGroup();
 
-        iterateThroughInnerLayersAndValidate(tempPage, true)
+            if (symbol) {
+                if (symbol.nodeName()) {
+                    symbol.nodeName = symbolName
+                }
 
-        function iterateThroughInnerLayersAndValidate(layerGroup, isRoot) {
-            if (isRoot || isArtworkNameValid(layerGroup.name())) {
-                var groupLayersLoop = layerGroup.layers().reverseObjectEnumerator()
-                while (groupChildLayer = groupLayersLoop.nextObject()) {
-                    if (groupChildLayer.isMemberOfClass(MSLayerGroup)) {
-                        if (!groupChildLayer.nodeName().substringToIndex(2).isEqualToString("!!")) {
-                            iterateThroughInnerLayersAndValidate(groupChildLayer, false)
+                var sublayersLoop = symbol.children().objectEnumerator()
+                while (sublayer = sublayersLoop.nextObject()) {
+                    if (!isLayerNameInvalid(sublayer.nodeName())) {
+                        sublayer.nodeName = rootName
+                        if (sublayer.isMemberOfClass(MSSymbolInstance)) {
+                            findAndDetachFromSymbol(sublayer, rootName)
                         }
-                    } else if (groupChildLayer.isMemberOfClass(MSArtboardGroup) || groupChildLayer.isMemberOfClass(MSSymbolMaster) ) {
-                        iterateThroughInnerLayersAndValidate(groupChildLayer, false)
-                    } else {
-                        var artboardName = groupChildLayer.parentArtboard() ? groupChildLayer.parentArtboard().nodeName() : "No Artboard"
-                        itentifyAndAddResult(groupChildLayer, artboardName)
                     }
                 }
             }
         }
 
-        // Validating results and making dictionary
-        function itentifyAndAddResult(layer, key) {
-            if (layer.isMemberOfClass(MSTextLayer)) {
-                var layerName = layer.nodeName();
-                if (layerName.length() > 1 && layerName.substringToIndex(2).isEqualToString("!!")) {
+        // // Finding text layers
+        var resultArray = NSMutableArray.array()
+
+        var artboardsLoop = artboards.objectEnumerator()
+        while (artboard = artboardsLoop.nextObject()) {
+            var artboardDict = NSMutableDictionary.dictionary()
+            artboardDict["artboardName"] = artboard.nodeName()
+            artboardDict["strings"] = NSMutableArray.array()
+
+            var layersLoop = artboard.layers().reverseObjectEnumerator()
+            while (layer = layersLoop.nextObject()) {
+                iterateThroughInnerLayersAndValidate(layer)
+            }
+
+            resultArray.addObject(artboardDict)
+
+            function iterateThroughInnerLayersAndValidate(layer) {
+                if (!layer.nodeName()) {
                     return
                 }
-                var preparedString = prepareString(layer.attributedString().string())
-                addResult(preparedString, key)
-            }
 
-            function prepareString(string) {
-                return string.stringByReplacingOccurrencesOfString_withString("\n"," ")
-            }
+                var layerName = layer.nodeName()
 
-            function addResult(string, key) {
-                if (resultDict.objectForKey(key)) {
-                    resultDict[key].addObject(string)
-                } else {
-                    resultDict[key] = NSMutableArray.array()
-                    resultDict[key].addObject(string)
+                if (isLayerNameInvalid(layerName)) {
+                    return
                 }
-            }
-        }
 
-        // Settings: Only Artworks
-        function isArtworkNameValid(artworkName) {
-            if (parameters["artworksNames"].count() > 0) {
-                var artworksNamesLoop = parameters["artworksNames"].objectEnumerator()
-                while (currentArtworkName = artworksNamesLoop.nextObject()) {
-                    if (artworkName.isEqualToString(currentArtworkName)) {
-                        return true
+                if (layer.isMemberOfClass(MSLayerGroup)) {
+                    var sublayersLoop = layer.layers().reverseObjectEnumerator()
+                    while (sublayer = sublayersLoop.nextObject()) {
+                        iterateThroughInnerLayersAndValidate(sublayer)
                     }
+                } else if (layer.isMemberOfClass(MSTextLayer)) {
+                    var artboardName = artboard.nodeName();
+                    var layerName = layer.nodeName();
+                    var text = layer.attributedString().string().stringByReplacingOccurrencesOfString_withString("\n"," ")
+
+                    var stringKey = layerName
+
+                    var stringObject = NSMutableDictionary.dictionary();
+                    stringObject[stringKey] = text
+
+                    artboardDict["strings"].addObject(stringObject)
                 }
-                return false
-            }
-            else {
-                return true
             }
         }
 
         document.documentData().removePage(tempPage)
 
-        // Preparing result string
-        var resultString = ""
-        var keyCount = 0
+        // Configuring save panel
+        var savePanel = NSSavePanel.savePanel()
+        savePanel.allowedFileTypes = ["txt"]
+        savePanel.nameFieldStringValue = originalPage.nodeName()
 
-        var sortDescriptor = NSSortDescriptor.sortDescriptorWithKey_ascending("", true)
-        var sortDescriptors = NSArray.arrayWithObject(sortDescriptor)
-        var resultKeysLoop = resultDict.allKeys().sortedArrayUsingDescriptors(sortDescriptors).objectEnumerator()
-        while (artboardName = resultKeysLoop.nextObject()) {
-            // Artboard name
-            resultString += "Artboard " + artboardName + "\n\n"
+        // Launching alert
+        var result = savePanel.runModal()
+        if (result == NSFileHandlingPanelOKButton) {
+            var resultString = ""
 
-            var dotRange = artboardName.rangeOfString(".")
-            var strArtboardNumber = artboardName.substringToIndex(dotRange.location)
-            var numberFormatter = NSNumberFormatter.alloc().init()
-            var artboardNumber = numberFormatter.numberFromString(strArtboardNumber)
-            strArtboardNumber = numberFormatter.stringFromNumber(artboardNumber)
+            var resultsLoop = resultArray.objectEnumerator()
+            while (resultDict = resultsLoop.nextObject()) {
+                var artboardName = resultDict["artboardName"]
 
-            var stringsLoop = resultDict[artboardName].objectEnumerator()
-            while (string = stringsLoop.nextObject()) {
-                if (string.stringByReplacingOccurrencesOfString_withString(" ", "").length() > 0) {
-                    resultString += "::" + strArtboardNumber + "." + keyCount + " " + string + ":: = \"\"\n"
-                    keyCount++
+                var stringsLoop = resultDict["strings"].objectEnumerator()
+                while (stringObject = stringsLoop.nextObject()) {
+                    var stringKey = stringObject.allKeys().firstObject()
+                    var stringText = stringObject[stringKey]
+
+                    var fileNamePrefix = savePanel.nameFieldStringValue().componentsSeparatedByString(" ").componentsJoinedByString("_")
+
+                    resultString += "::" + fileNamePrefix + "_" + artboardName + "_" + stringKey + ":: = \"" + stringText + "\"\n"
                 }
+                resultString += "\n"
             }
-            resultString += "\n"
-        }
-        resultString = NSString.stringWithString(resultString)
 
-        saveToFile(resultString)
+            resultString = NSString.stringWithString(resultString)
 
-        function saveToFile(string) {
-
-            // Configuring save panel
-            var savePanel = NSSavePanel.savePanel()
-            savePanel.allowedFileTypes = ["txt"]
-            savePanel.nameFieldStringValue = originalPage.nodeName()
-
-            // Launching alert
-            var result = savePanel.runModal()
-            if (result == NSFileHandlingPanelOKButton) {
-                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_pt-BR"), true, NSUTF8StringEncoding, null)
-                string.writeToFile_atomically_encoding_error(savePanel.URL().path().stringByReplacingOccurrencesOfString_withString(originalPage.nodeName(), originalPage.nodeName() + "_en"), true, NSUTF8StringEncoding, null)
-            }
+            resultString.writeToFile_atomically_encoding_error(savePanel.URL().path(), true, NSUTF8StringEncoding, null)
         }
     }
 }
